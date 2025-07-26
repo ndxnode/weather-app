@@ -8,6 +8,7 @@ import { WeatherData, ForecastData } from "@/lib/types";
 import { getWeatherBackground, isNightTime } from "@/lib/weather-utils";
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
+import { WeatherCardSkeleton, ForecastCardSkeleton } from "@/components/skeleton-loader";
 
 async function fetchWeather(city: string): Promise<WeatherData> {
   const res = await fetch(`/api/weather?city=${encodeURIComponent(city)}`);
@@ -35,7 +36,7 @@ export default function Home() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [background, setBackground] = useState({ gradient: 'bg-gradient-to-br from-blue-500 to-purple-600', isDark: true });
-  // Removed currentCity state as it's not needed
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
 
   const loadWeatherData = async (city: string) => {
     setIsLoading(true);
@@ -72,6 +73,7 @@ export default function Home() {
       setError(error instanceof Error ? error.message : 'An error occurred');
     } finally {
       setIsLoading(false);
+      setIsInitialLoad(false);
     }
   };
 
@@ -121,6 +123,9 @@ export default function Home() {
               {weatherData.name}, {weatherData.sys.country}
             </p>
           )}
+          {isInitialLoad && !weatherData && (
+            <div className="h-6 bg-white/10 rounded-md w-48 mx-auto animate-pulse mt-2"></div>
+          )}
         </motion.div>
 
         <div className="flex flex-col items-center space-y-8">
@@ -139,18 +144,15 @@ export default function Home() {
           </ClientOnly>
 
           {isLoading ? (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="flex items-center justify-center py-12"
-            >
-              <div className="animate-spin rounded-full h-16 w-16 border-4 border-white/30 border-t-white"></div>
-            </motion.div>
+            <div className="w-full space-y-8">
+              <WeatherCardSkeleton />
+              <ForecastCardSkeleton />
+            </div>
           ) : weatherData ? (
             <ClientOnly>
               <div className="w-full space-y-8">
                 <div className="flex justify-center">
-                  <WeatherCard weatherData={weatherData} />
+                  <WeatherCard weatherData={weatherData} isDark={background.isDark} />
                 </div>
                 {forecastData && (
                   <ForecastCard 

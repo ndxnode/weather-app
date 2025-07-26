@@ -17,9 +17,10 @@ import {
 
 type WeatherCardProps = {
   weatherData: WeatherData;
+  isDark?: boolean;
 };
 
-export function WeatherCard({ weatherData }: WeatherCardProps) {
+export function WeatherCard({ weatherData, isDark }: WeatherCardProps) {
   if (!weatherData) return null;
 
   // Destructure weather data
@@ -40,7 +41,10 @@ export function WeatherCard({ weatherData }: WeatherCardProps) {
     weatherData.timezone
   );
 
-  const background = getWeatherBackground(weatherMain, weatherId, isNight);
+  // Use isDark prop if provided, otherwise calculate from weather
+  const background = isDark !== undefined 
+    ? { isDark } 
+    : getWeatherBackground(weatherMain, weatherId, isNight);
 
   return (
     <motion.div

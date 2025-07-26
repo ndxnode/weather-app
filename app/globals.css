@@ -2,6 +2,12 @@
 @tailwind components;
 @tailwind utilities;
 
+@keyframes shimmer {
+  to {
+    transform: translateX(100%);
+  }
+}
+
 body {
   font-family: Arial, Helvetica, sans-serif;
 }
