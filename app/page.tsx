@@ -3,6 +3,7 @@
 import { WeatherCard } from "@/components/weather-card";
 import { CitySearch } from "@/components/city-search";
 import { ForecastCard } from "@/components/forecast-card";
+import { ClientOnly } from "@/components/client-only";
 import { WeatherData, ForecastData } from "@/lib/types";
 import { getWeatherBackground, isNightTime } from "@/lib/weather-utils";
 import { useState, useEffect } from "react";
@@ -33,6 +34,7 @@ export default function Home() {
   const [forecastData, setForecastData] = useState<ForecastData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [background, setBackground] = useState({ gradient: 'bg-gradient-to-br from-blue-500 to-purple-600', isDark: true });
   // Removed currentCity state as it's not needed
 
   const loadWeatherData = async (city: string) => {
@@ -48,6 +50,23 @@ export default function Home() {
       
       setWeatherData(weatherResponse);
       setForecastData(forecastResponse);
+      
+      // Update background based on weather data (client-side only)
+      if (weatherResponse && weatherResponse.sys && weatherResponse.weather && weatherResponse.weather[0]) {
+        const isNight = isNightTime(
+          weatherResponse.sys.sunrise, 
+          weatherResponse.sys.sunset, 
+          weatherResponse.timezone
+        );
+        
+        const newBackground = getWeatherBackground(
+          weatherResponse.weather[0].main, 
+          weatherResponse.weather[0].id, 
+          isNight
+        );
+        
+        setBackground(newBackground);
+      }
     } catch (error: unknown) {
       console.error(error instanceof Error ? error.message : 'An error occurred');
       setError(error instanceof Error ? error.message : 'An error occurred');
@@ -60,20 +79,7 @@ export default function Home() {
     loadWeatherData("New York");
   }, []);
 
-  // Get dynamic background based on weather conditions
-  const background = weatherData ? (() => {
-    const isNight = isNightTime(
-      weatherData.sys.sunrise, 
-      weatherData.sys.sunset, 
-      weatherData.timezone
-    );
-    
-    return getWeatherBackground(
-      weatherData.weather[0].main, 
-      weatherData.weather[0].id, 
-      isNight
-    );
-  })() : { gradient: 'bg-gradient-to-br from-blue-500 to-purple-600', isDark: true };
+  // Background is now managed in state to avoid hydration mismatch
 
   const textColor = background.isDark ? 'text-white' : 'text-gray-900';
 
@@ -98,7 +104,10 @@ export default function Home() {
   }
 
   return (
-    <main className={`min-h-screen ${background.gradient} ${textColor} transition-all duration-1000`}>
+    <main 
+      className={`min-h-screen ${background.gradient} ${textColor} transition-all duration-1000`}
+      suppressHydrationWarning={true}
+    >
       <div className="container mx-auto px-4 py-8 max-w-6xl">
         <motion.div
           initial={{ opacity: 0, y: -20 }}
@@ -115,11 +124,19 @@ export default function Home() {
         </motion.div>
 
         <div className="flex flex-col items-center space-y-8">
-          <CitySearch 
-            onCitySelect={loadWeatherData} 
-            isLoading={isLoading}
-            isDark={background.isDark}
-          />
+          <ClientOnly 
+            fallback={
+              <div className="w-full max-w-sm sm:max-w-md mx-auto relative">
+                <div className="h-12 bg-white/10 rounded-lg animate-pulse"></div>
+              </div>
+            }
+          >
+            <CitySearch 
+              onCitySelect={loadWeatherData} 
+              isLoading={isLoading}
+              isDark={background.isDark}
+            />
+          </ClientOnly>
 
           {isLoading ? (
             <motion.div
@@ -130,17 +147,19 @@ export default function Home() {
               <div className="animate-spin rounded-full h-16 w-16 border-4 border-white/30 border-t-white"></div>
             </motion.div>
           ) : weatherData ? (
-            <div className="w-full space-y-8">
-              <div className="flex justify-center">
-                <WeatherCard weatherData={weatherData} />
+            <ClientOnly>
+              <div className="w-full space-y-8">
+                <div className="flex justify-center">
+                  <WeatherCard weatherData={weatherData} />
+                </div>
+                {forecastData && (
+                  <ForecastCard 
+                    forecastData={forecastData} 
+                    isDark={background.isDark}
+                  />
+                )}
               </div>
-              {forecastData && (
-                <ForecastCard 
-                  forecastData={forecastData} 
-                  isDark={background.isDark}
-                />
-              )}
-            </div>
+            </ClientOnly>
           ) : null}
         </div>
       </div>

@@ -32,7 +32,20 @@ export function ForecastCard({ forecastData, isDark = true }: ForecastCardProps)
   const processedDates = new Set<string>();
 
   forecastData.list.forEach((item: ForecastItem) => {
+    // Add safety checks for item structure
+    if (!item || !item.dt || !item.main || !item.weather || !item.weather[0]) {
+      console.warn('Invalid forecast item:', item);
+      return;
+    }
+    
     const date = new Date(item.dt * 1000);
+    
+    // Check if date is valid
+    if (isNaN(date.getTime())) {
+      console.warn('Invalid date from timestamp:', item.dt);
+      return;
+    }
+    
     const dateString = date.toDateString();
     
     if (!processedDates.has(dateString) && dailyForecasts.length < 5) {
@@ -40,11 +53,23 @@ export function ForecastCard({ forecastData, isDark = true }: ForecastCardProps)
       
       // Get all items for this date to find min/max temps
       const dayItems = forecastData.list.filter(i => {
+        if (!i || !i.dt || !i.main) return false;
         const itemDate = new Date(i.dt * 1000);
-        return itemDate.toDateString() === dateString;
+        return !isNaN(itemDate.getTime()) && itemDate.toDateString() === dateString;
       });
 
-      const temps = dayItems.map(i => i.main.temp);
+      if (dayItems.length === 0) {
+        console.warn('No valid day items found for date:', dateString);
+        return;
+      }
+
+      const temps = dayItems.map(i => i.main.temp).filter(temp => typeof temp === 'number');
+      
+      if (temps.length === 0) {
+        console.warn('No valid temperatures found for date:', dateString);
+        return;
+      }
+      
       const temp_min = Math.min(...temps);
       const temp_max = Math.max(...temps);
 
